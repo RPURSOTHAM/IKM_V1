@@ -1,0 +1,97 @@
+# DLP policy thresholds and topic/document escalation rules.
+
+# Enforcement: reviewer decides Allow / Mask / Block for anything above low.
+# Set auto_block_enabled: true only if you want DLP to hard-block without a dropdown.
+# Env override: DLP_AUTO_BLOCK_ENABLED=true|false
+enforcement:
+  auto_block_enabled: false
+  auto_allow_only_low: true
+  # When true, applying Allow/Mask/Block reopens a terminal queue row first (re-upload flow).
+  reopen_on_reviewer_decide: true
+
+similarity:
+  block_above: 0.95
+  human_review_min: 0.85
+  warning_min: 0.75
+
+moderation:
+  block_risks:
+    - high
+    - critical
+  human_review_risks:
+    - medium
+  block_confidence_min: 0.80
+
+topics:
+  # Topic names must match TopicClassifier.rules keys (aliases allowed below).
+  "Medical / Clinical":
+    action: warning
+    min_confidence: 0.7
+  Medical/Clinical:
+    action: warning
+    min_confidence: 0.7
+  Legal:
+    action: warning
+    min_confidence: 0.6
+  Finance:
+    action: warning
+    min_confidence: 0.7
+  Regulatory:
+    action: warning
+    min_confidence: 0.7
+  "IT / Security":
+    action: warning
+    min_confidence: 0.75
+
+document_types:
+  NDA:
+    escalate: high
+  Contract:
+    escalate: medium
+  Medical Record:
+    escalate: high
+  SOP:
+    escalate: none
+  Publication:
+    escalate: none
+  Research Paper:
+    escalate: none
+  Regulatory Document:
+    escalate: medium
+
+# Content matches: human_review so the UI shows Allow / Mask / Block.
+# Use action: block only together with enforcement.auto_block_enabled: true.
+blacklist_categories:
+  credentials:
+    severity: critical
+    action: human_review
+  financial:
+    severity: high
+    action: human_review
+  pharma:
+    severity: high
+    action: human_review
+  pii_keywords:
+    severity: high
+    action: human_review
+  privileged:
+    severity: high
+    action: human_review
+  safety_abuse:
+    severity: high
+    action: human_review
+  violence:
+    severity: high
+    action: human_review
+  self_harm:
+    severity: high
+    action: human_review
+  hate_harassment:
+    severity: high
+    action: human_review
+  criminal_activity:
+    severity: high
+    action: human_review
+  confidential_restricted:
+    severity: high
+    action: human_review

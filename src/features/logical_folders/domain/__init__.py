@@ -1,0 +1,1 @@
+"""Logical folder domain types."""

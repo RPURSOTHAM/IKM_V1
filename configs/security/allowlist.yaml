@@ -1,0 +1,10 @@
+# Allowlisted phrases — these override blacklist matches (e.g. training examples).
+# Matched case-insensitively as whole phrases.
+
+training_examples:
+  - sample bank account number for training
+  - example api secret placeholder
+
+documentation:
+  - see password policy document
+  - routing number field label

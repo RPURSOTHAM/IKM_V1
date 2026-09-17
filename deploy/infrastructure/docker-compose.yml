@@ -1,0 +1,141 @@
+# Single env for the whole stack:
+#   docker compose --env-file ../application/.env up -d
+# Do not create a separate deploy/infrastructure/.env.
+
+networks:
+  docnet:
+    name: docnet
+    driver: bridge
+
+volumes:
+  weaviate_data:
+  neo4j_data:
+  neo4j_logs:
+  redis_data:
+  rabbitmq_data:
+  postgres_data:
+
+services:
+  # --- Relational store (PostgreSQL) — document jobs, types, repos, platform config ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: rag-postgres
+    restart: unless-stopped
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_builder}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # --- Vector Database ---
+  weaviate:
+    image: cr.weaviate.io/semitechnologies/weaviate:1.36.8
+    container_name: weaviate
+    restart: unless-stopped
+    ports:
+      - "${WEAVIATE_PORT:-8086}:8080"
+      - "${WEAVIATE_GRPC_PORT:-50051}:50051"
+    environment:
+      QUERY_DEFAULTS_LIMIT: "${WEAVIATE_QUERY_DEFAULTS_LIMIT:-25}"
+      PERSISTENCE_DATA_PATH: "/var/lib/weaviate"
+      DEFAULT_VECTORIZER_MODULE: "${WEAVIATE_DEFAULT_VECTORIZER_MODULE:-none}"
+      API_BASED_MODULES_DISABLED: "${WEAVIATE_API_BASED_MODULES_DISABLED:-true}"
+      CLUSTER_HOSTNAME: "${WEAVIATE_CLUSTER_HOSTNAME:-node1}"
+
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: "${WEAVIATE_AUTH_ANONYMOUS_ENABLED:-false}"
+      AUTHENTICATION_APIKEY_ENABLED: "${WEAVIATE_AUTH_APIKEY_ENABLED:-true}"
+      AUTHENTICATION_APIKEY_ALLOWED_KEYS: "${WEAVIATE_AUTH_APIKEY_ALLOWED_KEYS:-weaviate_secret_key}"
+      AUTHENTICATION_APIKEY_USERS: "${WEAVIATE_AUTH_APIKEY_USERS:-admin}"
+      AUTHORIZATION_ENABLE_RBAC: "${WEAVIATE_AUTH_RBAC_ENABLED:-true}"
+      AUTHORIZATION_RBAC_ROOT_USERS: "${WEAVIATE_AUTH_RBAC_ROOT_USERS:-admin}"
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/v1/.well-known/ready"]
+      interval: ${WEAVIATE_HEALTHCHECK_INTERVAL:-10s}
+      timeout: ${WEAVIATE_HEALTHCHECK_TIMEOUT:-5s}
+      retries: ${WEAVIATE_HEALTHCHECK_RETRIES:-10}
+      start_period: ${WEAVIATE_HEALTHCHECK_START_PERIOD:-30s}
+
+  # --- Graph Database ---
+  neo4j:
+    image: neo4j:5
+    restart: unless-stopped
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/password}
+      NEO4J_server_memory_heap_initial__size: "${NEO4J_HEAP_INITIAL_SIZE:-512m}"
+      NEO4J_server_memory_heap_max__size: "${NEO4J_HEAP_MAX_SIZE:-1G}"
+      NEO4J_server_memory_pagecache_size: "${NEO4J_PAGECACHE_SIZE:-512m}"
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - ./plugins:/plugins
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 >/dev/null 2>&1 || exit 1"]
+      interval: ${NEO4J_HEALTHCHECK_INTERVAL:-15s}
+      timeout: ${NEO4J_HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${NEO4J_HEALTHCHECK_RETRIES:-10}
+      start_period: ${NEO4J_HEALTHCHECK_START_PERIOD:-60s}
+
+
+  # --- Cache Layer ---
+  redis:
+    image: redis:8.0.6-alpine
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAXMEMORY:-128mb}
+      --maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+      --save "${REDIS_SAVE:-}"
+      --requirepass "${REDIS_PASSWORD}"
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: ${REDIS_HEALTHCHECK_INTERVAL:-5s}
+      timeout: ${REDIS_HEALTHCHECK_TIMEOUT:-3s}
+      retries: ${REDIS_HEALTHCHECK_RETRIES:-5}
+
+  # --- Message Queue ---
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    restart: unless-stopped
+    ports:
+      - "${RABBITMQ_AMQP_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-rabbitmq_user}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-rabbitmq_password}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: ${RABBITMQ_HEALTHCHECK_INTERVAL:-30s}
+      timeout: ${RABBITMQ_HEALTHCHECK_TIMEOUT:-10s}
+      retries: ${RABBITMQ_HEALTHCHECK_RETRIES:-5}
+      start_period: ${RABBITMQ_HEALTHCHECK_START_PERIOD:-30s}
+
+  # MySQL removed — relational persistence is PostgreSQL (`postgres` service above).

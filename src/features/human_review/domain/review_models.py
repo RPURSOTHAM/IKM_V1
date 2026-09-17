@@ -1,0 +1,77 @@
+"""Phase 5 document review statuses and transition rules."""
+
+from __future__ import annotations
+
+REVIEW_STATUS_PENDING = "PENDING"
+REVIEW_STATUS_IN_REVIEW = "IN_REVIEW"
+REVIEW_STATUS_APPROVED = "APPROVED"
+REVIEW_STATUS_REJECTED = "REJECTED"
+REVIEW_STATUS_CHANGES_REQUESTED = "CHANGES_REQUESTED"
+REVIEW_STATUS_REOPENED = "REOPENED"
+
+ALL_REVIEW_STATUSES = frozenset(
+    {
+        REVIEW_STATUS_PENDING,
+        REVIEW_STATUS_IN_REVIEW,
+        REVIEW_STATUS_APPROVED,
+        REVIEW_STATUS_REJECTED,
+        REVIEW_STATUS_CHANGES_REQUESTED,
+        REVIEW_STATUS_REOPENED,
+    }
+)
+
+OPEN_REVIEW_STATUSES = frozenset(
+    {
+        REVIEW_STATUS_PENDING,
+        REVIEW_STATUS_IN_REVIEW,
+        REVIEW_STATUS_CHANGES_REQUESTED,
+        REVIEW_STATUS_REOPENED,
+    }
+)
+
+# validation_status values that auto-create a review
+REVIEW_TRIGGER_STATUSES = frozenset({"WARNING", "INVALID", "FAIL"})
+
+ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    REVIEW_STATUS_PENDING: frozenset(
+        {
+            REVIEW_STATUS_IN_REVIEW,
+            REVIEW_STATUS_APPROVED,
+            REVIEW_STATUS_REJECTED,
+            REVIEW_STATUS_CHANGES_REQUESTED,
+        }
+    ),
+    REVIEW_STATUS_REOPENED: frozenset(
+        {
+            REVIEW_STATUS_IN_REVIEW,
+            REVIEW_STATUS_APPROVED,
+            REVIEW_STATUS_REJECTED,
+            REVIEW_STATUS_CHANGES_REQUESTED,
+        }
+    ),
+    REVIEW_STATUS_IN_REVIEW: frozenset(
+        {
+            REVIEW_STATUS_APPROVED,
+            REVIEW_STATUS_REJECTED,
+            REVIEW_STATUS_CHANGES_REQUESTED,
+        }
+    ),
+    REVIEW_STATUS_CHANGES_REQUESTED: frozenset(
+        {
+            REVIEW_STATUS_IN_REVIEW,
+            REVIEW_STATUS_APPROVED,
+            REVIEW_STATUS_REJECTED,
+            REVIEW_STATUS_CHANGES_REQUESTED,
+        }
+    ),
+    REVIEW_STATUS_APPROVED: frozenset({REVIEW_STATUS_REOPENED}),
+    REVIEW_STATUS_REJECTED: frozenset({REVIEW_STATUS_REOPENED}),
+}
+
+ACTION_TO_STATUS = {
+    "assign": REVIEW_STATUS_IN_REVIEW,
+    "approve": REVIEW_STATUS_APPROVED,
+    "reject": REVIEW_STATUS_REJECTED,
+    "request_changes": REVIEW_STATUS_CHANGES_REQUESTED,
+    "reopen": REVIEW_STATUS_REOPENED,
+}

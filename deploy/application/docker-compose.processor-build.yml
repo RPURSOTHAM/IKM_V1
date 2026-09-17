@@ -1,0 +1,19 @@
+# Processor image definition (built separately — see build-image.ps1).
+#
+# Build (from src/processor_service):
+#   powershell -File build-image.ps1
+#
+# On non-OneDrive paths you may also use:
+#   docker compose -f docker-compose.processor-build.yml build
+#
+# Windows + OneDrive: docker compose build fails with "invalid file request"
+# because cloud-only files are reparse points. Always use build-image.ps1.
+
+services:
+  processor:
+    image: rag-processor:latest
+    profiles:
+      - never
+    build:
+      context: ../..
+      dockerfile: deploy/application/Dockerfile.processor
