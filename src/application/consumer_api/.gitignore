@@ -1,0 +1,7 @@
+# Keep Python sources tracked; ignore local runtime artifacts only.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.env
+*.log

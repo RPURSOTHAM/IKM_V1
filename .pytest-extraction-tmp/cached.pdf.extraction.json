@@ -1,0 +1,16 @@
+{
+  "document_id": "doc-abc",
+  "original_file_name": "cached.pdf",
+  "file_extension": "pdf",
+  "source": "document_blocks",
+  "section_count": 1,
+  "sections": [
+    {
+      "index": 1,
+      "page": 1,
+      "text": "Cached text",
+      "kind": "page"
+    }
+  ],
+  "full_text": "Cached text"
+}

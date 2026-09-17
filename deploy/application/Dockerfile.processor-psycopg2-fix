@@ -1,0 +1,6 @@
+# One-shot repair layer: host-mounted shared DB code requires psycopg2, and
+# prior `docker commit --change` on Windows can mangle ENTRYPOINT into shell form.
+FROM rag-processor:latest
+USER root
+RUN python -m pip install --no-cache-dir "psycopg2-binary>=2.9.9"
+ENTRYPOINT ["python", "-m", "src.workers.document_processor.main"]

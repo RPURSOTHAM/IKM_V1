@@ -1,0 +1,43 @@
+TASK: Extend our IKM OCR (already ported for PDF + images) to support DOCX files with scanned/embedded image content. Reuse existing Tesseract modules — do not introduce PaddleOCR.
+
+PREREQUISITE: PDF/image OCR already working via:
+- src/features/document_processing/loaders/image_ocr_loader.py
+- src/features/document_processing/loaders/scanned_pdf_ocr.py
+- load_document_blocks() in document_text.py
+
+CONTEXT:
+- DocxLoader (docxloader.py) already emits block_type="image" blocks for inline_shapes but with empty text.
+- Template extractors under extractors/template_compliance/ already have OCR-noise cleanup heuristics — reuse that text quality logic where helpful.
+- OCR processor gate: respect ProcessorConfigurationProvider.is_processor_enabled("ocr").
+
+IMPLEMENTATION OPTIONS (pick the best fit after reading our docxloader.py):
+
+Option A — Embedded image OCR (recommended first):
+1. Create src/features/document_processing/loaders/scanned_docx_ocr.py
+2. After DocxLoader().load() in document_text.py, call apply_ocr_to_docx(document_path, blocks)
+3. For each image block OR images extracted from word/media/ inside the .docx zip:
+   - Save image bytes to temp file
+   - Call ocr_image_best() from image_ocr_loader.py
+   - Append text blocks with metadata {source: "tesseract_ocr", ocr_used: True, docx_image_index: N}
+4. Skip OCR when page/section already has looks_like_usable_native_text() (reuse logic from scanned_pdf_ocr.py)
+
+Option B — Full scanned DOCX fallback:
+1. If entire document has very little usable text (< threshold), convert DOCX to PDF using existing LibreOffice path (see _resolve_ppt_path pattern in document_text.py)
+2. Run apply_ocr_to_scanned_pdf() on the converted PDF
+3. Map page numbers back to DOCX structure as best effort
+
+RULES:
+- Gate behind ocr processor enabled (same as PDF).
+- Do not break normal DOCX with real text layers.
+- Reuse blocks_from_ocr_text() and ocr_image_best() — no duplicate Tesseract logic.
+- Set document metadata ocr_used when OCR blocks are added.
+- Add unit tests mirroring test_image_ocr_loader.py patterns (mock tesseract subprocess).
+- Run existing docx extraction tests to ensure no regression.
+
+ACCEPTANCE CRITERIA:
+- Normal DOCX with selectable text → unchanged, OCR not run.
+- DOCX with embedded scan images → OCR text extracted and searchable.
+- ocr_used metadata set correctly.
+- Disabled ocr processor → DOCX behaves as before.
+
+OUTPUT: List files created/modified, test commands, and limitations (e.g. complex layout mapping).

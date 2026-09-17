@@ -1,0 +1,229 @@
+# Application + infrastructure share ONE env: .env (this directory).
+#
+# Prerequisites:
+#   1. Infrastructure:  cd ../infrastructure && docker compose --env-file ../application/.env up -d
+#   2. Processor image: powershell -File build-application.ps1 (or build-processor-image.ps1)
+#   3. Env: edit deploy/application/.env (REPO_ROOT + secrets)
+#   4. Pharma CIH models (optional but recommended):
+#        powershell -File ../../scripts/download-cih-models.ps1 -Profile Recommended
+#        Feature lives in src/features/content_intelligence_hub — UI at http://localhost:8088/cih
+#
+# Start application:
+#   docker compose -f docker-compose.application.yml --env-file .env up -d
+
+name: rag-builder-application
+
+services:
+  scheduler-service:
+    build:
+      context: ../..
+      dockerfile: deploy/application/Dockerfile.scheduler
+    image: rag-scheduler-service:latest
+    container_name: rag-scheduler-service
+    # Explicit entrypoint — image metadata may be broken after local patch commits.
+    entrypoint: ["python", "-m", "src.features.scheduler_server.main"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DEPLOYMENT_MODE: docker
+      RUNNING_IN_DOCKER: "1"
+      DOCUMENT_CLASSIFIER_PRELOAD: "false"
+      SCHEDULER_PROCESSOR_HTTP_MODE: docker_network
+      SCHEDULER_DOCKER_NETWORK: docnet
+      HOST_REPO_ROOT: ${REPO_ROOT}
+      # Host paths for processor bind mounts (Docker daemon runs on the host)
+      SCHEDULER_DOCUMENT_HOST_PATH: ${REPO_ROOT}/data/documents
+      SCHEDULER_MODELS_HOST_PATH: ${REPO_ROOT}/models
+      SCHEDULER_DOCUMENT_CONTAINER_PATH: /app/documents
+      SCHEDULER_MODELS_CONTAINER_PATH: /app/src/models
+      # Group scheduler-managed processors under this Compose project in Docker Desktop
+      SCHEDULER_COMPOSE_PROJECT: rag-builder-application
+      SCHEDULER_COMPOSE_SERVICE: doc-processor
+      SCHEDULER_COMPOSE_CONFIG_FILES: ${REPO_ROOT}/deploy/application/docker-compose.application.yml
+      SCHEDULER_COMPOSE_WORKING_DIR: ${REPO_ROOT}/deploy/application
+      SCHEDULER_JOB_TIMEOUT_SECONDS: ${SCHEDULER_JOB_TIMEOUT_SECONDS:-1800}
+      SCHEDULER_ORPHAN_GRACE_SECONDS: ${SCHEDULER_ORPHAN_GRACE_SECONDS:-30}
+      SCHEDULER_STALE_QUEUED_SECONDS: ${SCHEDULER_STALE_QUEUED_SECONDS:-30}
+      SCHEDULER_STALE_DISPATCHING_SECONDS: ${SCHEDULER_STALE_DISPATCHING_SECONDS:-30}
+      SCHEDULER_STALE_ASSIGNED_SECONDS: ${SCHEDULER_STALE_ASSIGNED_SECONDS:-120}
+      PROCESSOR_SKIP_SECURITY_WHEN_PREVALIDATED: ${PROCESSOR_SKIP_SECURITY_WHEN_PREVALIDATED:-true}
+      QUEUE_CHECK_FREQUENCY: ${QUEUE_CHECK_FREQUENCY:-1}
+      CONTAINER_POLLING_FREQUENCY: ${CONTAINER_POLLING_FREQUENCY:-3}
+      SCHEDULER_MIN_PARALLEL_JOBS: ${SCHEDULER_MIN_PARALLEL_JOBS:-5}
+      SCHEDULER_MAX_PARALLEL_JOBS: ${SCHEDULER_MAX_PARALLEL_JOBS:-10}
+      SCHEDULER_QUEUE_SCAN_LIMIT: ${SCHEDULER_QUEUE_SCAN_LIMIT:-150}
+      SCHEDULER_PROCESSOR_HEALTH_TIMEOUT_SECONDS: ${SCHEDULER_PROCESSOR_HEALTH_TIMEOUT_SECONDS:-5}
+      SCHEDULER_REPUBLISH_COOLDOWN_SECONDS: ${SCHEDULER_REPUBLISH_COOLDOWN_SECONDS:-90}
+      SCHEDULER_STALE_QUEUED_REPUBLISH_LIMIT: ${SCHEDULER_STALE_QUEUED_REPUBLISH_LIMIT:-8}
+    ports:
+      - "${SCHEDULER_TCP_PORT:-3200}:3200"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount scheduler/DMS/shared source so scheduling fixes and orphan recovery apply
+      # without requiring an image rebuild during local development.
+      - ${REPO_ROOT}/src:/app/src:ro
+      - ${REPO_ROOT}/data/documents:/app/documents:ro
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import json, socket, struct; payload=json.dumps({'signal_type':'healthcheck'}).encode(); s=socket.create_connection(('127.0.0.1', 3200), 15); s.sendall(struct.pack('>I', len(payload)) + payload); header=s.recv(4); length=struct.unpack('>I', header)[0]; body=s.recv(length); s.close(); raise SystemExit(0 if json.loads(body.decode()).get('status') == 'Healthy' else 1)\""]
+      interval: 10s
+      timeout: 20s
+      retries: 5
+      start_period: 45s
+
+  dms-service:
+    build:
+      context: ../..
+      dockerfile: deploy/application/Dockerfile.dms
+    image: rag-dms-service:latest
+    container_name: rag-dms-service
+    # Explicit entrypoint — image metadata may be broken after local patch commits.
+    entrypoint: ["python", "-m", "src.application.consumer_api.main"]
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DEPLOYMENT_MODE: docker
+      RUNNING_IN_DOCKER: "1"
+      DOCUMENT_ROOT: /app/documents
+      # Writable path — /app/src is mounted :ro in local docker compose
+      RAG_API_DB_PATH: /app/documents/rag_api.json
+      MODELS_ROOT: /app/src/models
+      DOCUMENT_CLASSIFIER_PRELOAD: "false"
+      RAG_API_ENABLE_RETRIEVAL: "true"
+      SCHEDULER_HOST: scheduler-service
+      SCHEDULER_TCP_PORT: "3200"
+      PLATFORM_BOOTSTRAP_ADMIN_USER: ${PLATFORM_BOOTSTRAP_ADMIN_USER:-admin}
+      PLATFORM_BOOTSTRAP_ADMIN_PASSWORD: ${PLATFORM_BOOTSTRAP_ADMIN_PASSWORD:?Set PLATFORM_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      JWT_SIGNING_KEY: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env}
+      DOCUMENT_JOBS_POSTGRES_HOST: postgres
+      DOCUMENT_JOBS_POSTGRES_PORT: "5432"
+      DOCUMENT_JOBS_POSTGRES_USER: ${DOCUMENT_JOBS_POSTGRES_USER:-${POSTGRES_USER:-postgres}}
+      DOCUMENT_JOBS_POSTGRES_PASSWORD: ${DOCUMENT_JOBS_POSTGRES_PASSWORD:-${POSTGRES_PASSWORD:-postgres_password}}
+      DOCUMENT_JOBS_POSTGRES_DATABASE: ${DOCUMENT_JOBS_POSTGRES_DATABASE:-${POSTGRES_DB:-rag_builder}}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rag_builder}
+      WEAVIATE_URL: ${WEAVIATE_URL:-http://weaviate:8080}
+      WEAVIATE_API_KEY: ${WEAVIATE_API_KEY:-weaviate_secret_key}
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
+      PROCESSORS_CONFIG_PATH: /app/configs/processors.yaml
+      MODEL_GUARD_BASE_URL: ${MODEL_GUARD_BASE_URL:-http://host.docker.internal:11434/v1}
+      CIH_MOUNT_PATH: ${CIH_MOUNT_PATH:-/api/v1/cih}
+      CIH_DATA_DIR: /app/documents/cih
+      APP_MODEL_CACHE_DIR: /app/src/models/cih
+      MONGODB_URI: ${CIH_MONGODB_URI:-mongodb://mongodb:27017}
+      MONGODB_DB: ${CIH_MONGODB_DB:-pharma_intelligence}
+      MONGODB_ENABLED: ${MONGODB_ENABLED:-true}
+      DMS_RUN_UPLOAD_SECURITY: ${DMS_RUN_UPLOAD_SECURITY:-false}
+      DMS_ASYNC_UPLOAD_FINALIZE: ${DMS_ASYNC_UPLOAD_FINALIZE:-true}
+    ports:
+      - "${RAG_API_PORT:-8088}:8088"
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    volumes:
+      - ${REPO_ROOT}/data/documents:/app/documents
+      - ${REPO_ROOT}/configs/security:/app/configs/security:ro
+      - ${REPO_ROOT}/configs/processors.yaml:/app/configs/processors.yaml:ro
+      - ${REPO_ROOT}/models:/app/src/models:ro
+      # Feature, infrastructure and worker modules are mounted together so all
+      # runtime imports resolve from the same refactored source tree.
+      - ${REPO_ROOT}/src:/app/src:ro
+    networks:
+      - docnet
+    depends_on:
+      scheduler-service:
+        condition: service_healthy
+      mongodb:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8088/health', timeout=5)\""]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  # Managed at runtime by scheduler-service (profile prevents `compose up` from starting replicas).
+  doc-processor:
+    profiles: ["scheduler-managed"]
+    image: ${PROCESSOR_IMAGE_NAME:-rag-processor:latest}
+    restart: unless-stopped
+    environment:
+      DEPLOYMENT_MODE: docker
+      RUNNING_IN_DOCKER: "1"
+      PROCESSOR_TYPE: doc_processor
+      DOCUMENT_ROOT: /app/documents
+      PROCESSOR_DOCUMENTS_DIR_IN_CONTAINER: /app/documents
+      PROCESSORS_CONFIG_PATH: /app/configs/processors.yaml
+    volumes:
+      - ${REPO_ROOT}/data/documents:/app/documents:rw
+      - ${REPO_ROOT}/src:/app/src:ro
+      - ${REPO_ROOT}/models:/app/src/models:ro
+      - ${REPO_ROOT}/configs/security:/app/configs/security:ro
+      - ${REPO_ROOT}/configs/processors.yaml:/app/configs/processors.yaml:ro
+    networks:
+      - docnet
+
+  reference-extraction-processor:
+    build:
+      context: ../..
+      dockerfile: deploy/application/Dockerfile.reference-processor
+    image: ${REFERENCE_EXTRACTOR_IMAGE_NAME:-rag-reference-extractor:latest}
+    container_name: reference_extraction_processor
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DEPLOYMENT_MODE: docker
+      RUNNING_IN_DOCKER: "1"
+      REFERENCE_EXTRACTION_PORT: "3110"
+      DOCUMENT_ROOT: /app/documents
+      PROCESSOR_DOCUMENTS_DIR_IN_CONTAINER: /app/documents
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USER: ${NEO4J_USER:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-password}
+    ports:
+      - "${REFERENCE_EXTRACTION_PORT:-3110}:3110"
+    volumes:
+      - ${REPO_ROOT}/data/documents:/app/documents:rw
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:3110/health', timeout=5)\""]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # MongoDB for Pharma CIH feature (src/features/content_intelligence_hub).
+  mongodb:
+    image: mongo:7
+    container_name: rag-cih-mongodb
+    restart: unless-stopped
+    ports:
+      - "${CIH_MONGODB_HOST_PORT:-27017}:27017"
+    volumes:
+      - cih_mongodb_data:/data/db
+    networks:
+      - docnet
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 30s
+
+networks:
+  docnet:
+    external: true
+    name: docnet
+
+volumes:
+  cih_mongodb_data:

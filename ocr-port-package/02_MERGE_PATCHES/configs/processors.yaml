@@ -1,0 +1,29 @@
+# Deployment-level processor enablement for IKM instances.
+#
+# When this file is absent, ALL processors default to enabled (backward compatible).
+# Environment overrides:
+#   PROCESSORS_CONFIG_PATH / PROCESSORS_CONFIG_DIR
+#   IKM_ENABLED_PROCESSORS=pdf,docx,security,...
+#   IKM_DISABLED_PROCESSORS=ocr,image
+#   PROCESSOR_<ID>_ENABLED=true|false  (e.g. PROCESSOR_OCR_ENABLED=false)
+#
+# Disabled processors are never initialized, never load models, and are skipped
+# in the processing pipeline.
+#
+# Hot reload (no container restart for YAML edits):
+#   - File watcher: PROCESSORS_CONFIG_WATCH=true (default)
+#   - API: POST /api/v1/system/processors/reload
+#   - Docs: docs/processor_configuration_hot_reload.md
+
+processors:
+  pdf: true
+  docx: true
+  pptx: true
+  media: true
+  ocr: true
+  security: true
+  key_fields: true
+  reference_extraction: true
+  image: true
+  embedding: true
+  reranker: true

@@ -1,0 +1,11 @@
+[server]
+# Streamlit 1.57 replaced Tornado with Starlette/uvicorn. The new server's
+# XSRF check rejects the internal upload requests (PUT /_stcore/upload_file)
+# in some local setups, so files appear selected but never upload.
+# This is a local dev tool, so XSRF/CORS protection is safe to disable.
+enableXsrfProtection = false
+enableCORS = false
+maxUploadSize = 200
+
+[browser]
+gatherUsageStats = false

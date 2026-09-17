@@ -1,0 +1,50 @@
+[project]
+name = "processor-service"
+version = "1.0.0"
+description = "DMS Platform Engine document indexing worker (chunk, embed, Weaviate)"
+readme = "../../../README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "python-dotenv>=1.0.1",
+    "weaviate-client>=4.20.4",
+    "sentence-transformers>=3.0.0",
+    "transformers>=4.42.0",
+    "torch>=2.0.0",
+    "python-docx>=1.1.0",
+    "python-pptx>=1.0.0",
+    "mammoth>=1.8.0",
+    "pdfplumber>=0.11.9",
+    "imageio-ffmpeg>=0.5.0",
+    "faster-whisper>=1.0.0",
+    "numpy>=1.26.0",
+    "pydantic>=2.8.0",
+    "psycopg2-binary>=2.9.9",
+    "neo4j>=5.28.0",
+    "redis>=5.2.0",
+    "PyYAML>=6.0.1",
+    "flashtext>=2.7",
+    "pymupdf>=1.24.0",
+    "openai>=1.40.0",
+]
+
+[project.optional-dependencies]
+gpu = ["torch>=2.0.0"]
+observability = [
+    "prometheus-client>=0.20.0",
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp-proto-http>=1.25.0",
+]
+
+[project.scripts]
+processor-service = "src.workers.document_processor.main:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["../../.."]
+include = ["src.application*", "src.features*", "src.infrastructure*", "src.workers*", "src.shared*"]

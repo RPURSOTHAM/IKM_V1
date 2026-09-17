@@ -1,0 +1,67 @@
+TASK: Port Tesseract OCR into our existing IKM codebase (PDF scanned pages + standalone image uploads). Use the attached reference files from the ocr-port-package zip as the source of truth. Do NOT invent a new OCR architecture.
+
+CONTEXT:
+- Our IKM currently has NO OCR.
+- Reference implementation uses Tesseract CLI (system binary `tesseract`), NOT PaddleOCR/EasyOCR/pytesseract Python wrappers for the extraction pipeline.
+- OCR applies to: (1) PDF pages with missing/garbage native text layer, (2) image files (.png, .jpg, .jpeg, .tif, .tiff, .bmp).
+- OCR does NOT apply to DOCX in this task — leave DOCX unchanged.
+- All extraction processors (template_extraction, metadata_extraction, key_field_extraction, etc.) consume text via load_document_blocks() — OCR must be wired there, not inside individual extractors.
+
+ATTACHED REFERENCE FILES (from ocr-port-package zip):
+
+COPY AS-IS (folder 01_COPY_AS_IS):
+- src/features/document_processing/loaders/image_ocr_loader.py
+- src/features/document_processing/loaders/scanned_pdf_ocr.py
+- tests/unit/documents/test_image_ocr_loader.py
+
+MERGE PATCHES (folder 02_MERGE_PATCHES — merge into existing files, do not blind overwrite):
+- src/features/document_processing/loaders/document_text.py
+- src/features/document_processing/shared_processor/deployment/ids.py
+- src/features/document_processing/shared_processor/deployment/implementations.py
+- configs/processors.yaml
+- deploy/application/Dockerfile.processor
+- deploy/application/Dockerfile.dms
+
+REFERENCE ONLY (folder 03_REFERENCE_ONLY — for context, already exist in IKM):
+- loader.py, component_classification.py
+
+STRICT RULES:
+1. First READ our existing IKM repo structure. Match our import paths, naming, and coding style. If our folder layout differs from reference, adapt paths — do not break imports.
+2. COPY image_ocr_loader.py and scanned_pdf_ocr.py into: src/features/document_processing/loaders/
+3. MERGE (do not blindly overwrite) document_text.py, ids.py, implementations.py, processors.yaml, Dockerfiles, requirements.txt.
+4. Use subprocess to call `tesseract` CLI (as in reference). Do not add PaddleOCR/EasyOCR for this task.
+5. Respect ProcessorConfigurationProvider: OCR runs only when processor id "ocr" is enabled. Image uploads require BOTH "image" and "ocr" enabled.
+6. Preserve all existing behavior for docx, pptx, media, txt loaders.
+7. Set block metadata on OCR output: {"source": "tesseract_ocr", "ocr_used": True}
+8. Set document metadata ocr_used: true when any block has ocr_used.
+9. Do not modify template_compliance extractors or unrelated features unless required for imports.
+10. After changes, run: pytest tests/unit/documents/test_image_ocr_loader.py -v
+    If our test path differs, port the test file to the equivalent location.
+
+IMPLEMENTATION ORDER (follow exactly):
+Step A: Add new loader modules (image_ocr_loader.py, scanned_pdf_ocr.py) from 01_COPY_AS_IS.
+Step B: Patch document_text.py — PDF apply_ocr_to_scanned_pdf hook, image ImageOcrLoader branch, processor gates, ocr_used metadata.
+Step C: Patch deployment ids.py and implementations.py — register OcrProcessor.
+Step D: Patch configs/processors.yaml — ocr: true (and verify image: true, pdf: true).
+Step E: Patch Dockerfiles — install tesseract-ocr via apt.
+Step F: Verify requirements.txt has pymupdf and Pillow (needed by scanned PDF render and image preprocessing).
+Step G: Add/port unit tests from test_image_ocr_loader.py.
+Step H: Summarize all files changed and provide rebuild/redeploy instructions.
+
+ACCEPTANCE CRITERIA:
+- Scanned/image-only PDF pages get Tesseract text via apply_ocr_to_scanned_pdf.
+- Image uploads (.png/.jpg/etc.) get text via ImageOcrLoader.
+- PDFs with good native text layer skip OCR (ocr_scanned_pdf_pages not called).
+- ocr processor can be disabled via processors.yaml or PROCESSOR_OCR_ENABLED=false.
+- DOCX loading unchanged (no OCR added in this task).
+- Unit tests pass.
+- No new dependency on pytesseract/easyocr/paddleocr for the loader OCR path.
+
+OUTPUT FORMAT:
+1. List every file created/modified with full paths.
+2. Brief explanation of each change.
+3. Docker rebuild commands for processor + DMS services.
+4. Test commands and expected results.
+5. Any differences from reference due to our repo structure.
+
+Do not stop at analysis — implement the full port.

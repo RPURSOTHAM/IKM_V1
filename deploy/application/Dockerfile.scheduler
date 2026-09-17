@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.6
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app \
+    DEPLOYMENT_MODE=docker \
+    RUNNING_IN_DOCKER=1
+
+WORKDIR /app
+
+COPY deploy/application/requirements.scheduler.txt ./requirements.scheduler.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install -r requirements.scheduler.txt
+
+COPY src ./src
+
+EXPOSE 3200
+
+CMD ["python", "-m", "src.features.scheduler_server.main"]

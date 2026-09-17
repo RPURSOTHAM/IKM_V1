@@ -1,0 +1,1 @@
+"""Medical literature research feature."""

@@ -1,0 +1,91 @@
+# Enterprise security policy — adapter configuration (hot-reloaded with other YAML policies).
+
+prompt_guard:
+  fail_open: true
+  unavailable_action: allow
+
+pdf_preprocessor:
+  confidentiality_markers:
+    - CONFIDENTIAL
+    - STRICTLY CONFIDENTIAL
+    - REFERENCE COPY
+    - INTERNAL REFERENCE COPY
+    - WORK PRODUCT
+    - CONTROLLED COPY
+    - INTERNAL USE ONLY
+    - RESTRICTED DISTRIBUTION
+    - PROPRIETARY DATA
+  page_number_patterns:
+    - "(?i)^\\s*page\\s+\\d+\\s+of\\s+\\d+\\s*$"
+    - "(?i)^\\s*page\\s+\\d+\\s*$"
+  remove_component_types:
+    - header
+    - footer
+  min_repeated_line_count: 3
+
+document_classification:
+  confidence_threshold: 0.70
+  weights:
+    metadata: 0.4
+    structure: 0.4
+    ml: 0.2
+  metadata_patterns:
+    SOP:
+      filename_tokens:
+        - GOP
+        - SOP
+      id_patterns:
+        - "GL-CQA-GOP-\\d+"
+        - "GL-[A-Z]+-GOP-\\d+"
+    Regulatory Document:
+      filename_tokens:
+        - REG
+        - CFR
+      id_patterns:
+        - "GL-[A-Z]+-REG-\\d+"
+    NDA:
+      filename_tokens:
+        - NDA
+      id_patterns:
+        - ".*NDA.*"
+    Contract:
+      filename_tokens:
+        - CTR
+        - CONTRACT
+  structure_patterns:
+    SOP:
+      sections:
+        - Purpose
+        - Scope
+        - Responsibilities
+        - Responsibility
+        - Procedure
+        - References
+        - Definitions
+    Regulatory Document:
+      sections:
+        - Regulatory
+        - Compliance
+        - Submission
+        - Guideline
+    NDA:
+      sections:
+        - Confidentiality
+        - Non-Disclosure
+        - Party
+        - Term
+    Medical Record:
+      sections:
+        - Patient
+        - Diagnosis
+        - Clinical
+        - Medical Record
+        - PHI
+
+security_scores:
+  ingress_weights:
+    dlp: 0.30
+    similarity: 0.25
+    prompt_guard: 0.20
+    moderation: 0.15
+    keyword: 0.10

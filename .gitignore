@@ -1,0 +1,62 @@
+# Environments & Virtual Envs
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables & Secrets
+.env
+*.env
+.env.*
+.env.docker
+src/deployment/.env.docker
+.streamlit/secrets.toml
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+*.pyzwzw
+*.pyzwzwz
+*.pyzwzwzw
+
+# Testing & Cache directories
+.pytest_cache/
+.pytest-image-ocr/
+.pytest-ocr-tmp/
+.deepeval/
+.mypy_cache/
+.ruff_cache/
+
+# Logs & reports
+*.log
+_reports/
+
+# Temporary / Scratch / POC files
+tmp_*.py
+scratch/
+largest_files.txt
+.agents/
+gxp-doc-ai-feature-gxp-doc-ai 1.zip
+_documents/
+just_for_reference/
+
+# Production runtime data (keep directories, ignore contents)
+data/documents/**
+!data/documents/.gitkeep
+data/reports/**
+!data/reports/.gitkeep
+data/templates/**
+!data/templates/.gitkeep
+models/**
+!models/.gitkeep

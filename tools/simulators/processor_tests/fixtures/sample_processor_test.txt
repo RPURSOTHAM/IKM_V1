@@ -1,0 +1,23 @@
+Standard Operating Procedure — Processor Integration Test Document
+
+Equipment_Name: Centrifuge Model X100
+Document_Number: PROC-TEST-001
+Effective_Date: 2026-01-01
+
+1. Purpose
+This fixture validates chunking, metadata extraction, template extraction,
+reference extraction, and HTML conversion processors in the RAG pipeline.
+
+2. Scope
+Applies to all automated processor test runs executed from src/simulators/processor_tests.
+
+3. References
+See document SOP-2024-001 for related calibration steps.
+Document ID: REF-PROC-TEST-001
+
+4. Procedure
+Follow all GMP guidelines when performing maintenance on laboratory equipment.
+Record all observations in the batch record before release.
+
+5. Revision History
+Version 1.0 — initial test fixture for processor validation.

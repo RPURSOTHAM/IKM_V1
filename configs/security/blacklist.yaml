@@ -1,0 +1,120 @@
+# Keyword blacklist — category → terms (matched case-insensitively).
+# Allowlist entries override blacklist matches of the same phrase.
+# Prefer natural-language phrases used in synthetic moderation fixtures,
+# not only instructional "how to" wording.
+
+financial:
+  - bank account
+  - routing number
+  - swift code
+  - iban
+  - wire transfer instructions
+  - credit card number
+  - debit card number
+  - cvv
+
+credentials:
+  - private key
+  - api secret
+  - access token
+  - password hash
+  - ssh key
+  - begin private key
+  - api key
+
+pharma:
+  - proprietary formulation
+  - confidential protocol
+  - trade secret composition
+  - unreleased clinical data
+
+pii_keywords:
+  - social security number
+  - aadhaar number
+  - passport number
+  - pan number
+  - date of birth
+  - driver's license
+
+privileged:
+  - attorney-client privilege
+  - work product doctrine
+  - privileged and confidential
+
+safety_abuse:
+  - explicit sexual content
+  - sexual content
+  - sexual activity
+  - pornographic material
+  - pornography
+  - explicit nudity
+  - nudity
+  - erotic scenes
+  - hate speech
+  - targeted harassment
+  - abusive language
+  - discriminatory remarks
+  - threatening communication
+  - ethnic hostility
+
+violence:
+  - graphic violence
+  - violent assault
+  - violent attack
+  - physical assault
+  - serious injury
+  - shooting incident
+  - stabbing event
+  - threats of murder
+  - murder instructions
+  - bomb making instructions
+  - terrorist content
+  - weapon construction
+  - how to make a bomb
+  - kill someone
+
+self_harm:
+  # Instructional / high-risk
+  - self-harm instructions
+  - suicide methods
+  - how to kill myself
+  - overdose guidance
+  - cut myself
+  # Ideation / medium-risk (synthetic moderation fixtures)
+  - self-harm
+  - self harm
+  - self-harm risk
+  - self harm risk
+  - hurting myself
+  - hurt myself
+  - harming myself
+  - harm myself
+  - thinking about hurting myself
+  - thinking about hurting
+  - suicidal
+  - suicide
+  - end my life
+  - kill myself
+  - want to die
+  - take my own life
+
+hate_harassment:
+  - racial slur
+  - anti-semitic content
+  - misogynistic abuse
+  - homophobic abuse
+  - doxxing target
+
+criminal_activity:
+  - money laundering steps
+  - identity theft guide
+  - phishing template
+  - ransomware deployment
+  - credit card fraud script
+
+confidential_restricted:
+  - restricted distribution
+  - confidential internal memo
+  - export controlled data
+  - classified project details
+  - do not distribute externally

@@ -1,0 +1,16 @@
+{
+  "document_id": "doc-1",
+  "original_file_name": "sample.pdf",
+  "file_extension": "pdf",
+  "source": "document_blocks",
+  "section_count": 1,
+  "sections": [
+    {
+      "index": 1,
+      "page": 1,
+      "text": "Hello",
+      "kind": "page"
+    }
+  ],
+  "full_text": "Hello"
+}
