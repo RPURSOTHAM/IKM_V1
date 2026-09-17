@@ -1,0 +1,41 @@
+.env
+*.env
+.env.*
+src/deployment/.env.docker
+.venv
+models
+_reports\*
+.venv\*
+__pycache__\*
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
+*.pyzwzw
+*.pyzwzwz
+*.pyzwzwzw
+
+_documents
+just_for_reference
+.env.docker
+*.log
+
+# Production runtime data (keep directories, ignore contents)
+data/documents/**
+!data/documents/.gitkeep
+data/reports/**
+!data/reports/.gitkeep
+data/templates/**
+!data/templates/.gitkeep
+models/**
+!models/.gitkeep
+
+# Local scratch / POC leftovers
+scratch/
+largest_files.txt
+.agents/
+gxp-doc-ai-feature-gxp-doc-ai 1.zip
